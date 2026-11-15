@@ -14,3 +14,11 @@ management:
     web:
       exposure:
         include: health,info
+auth:
+  jwt-ttl: ${JWT_TTL:PT1H}
+  otp-ttl: ${OTP_TTL:PT5M}
+  otp-max-attempts: ${OTP_MAX_ATTEMPTS:5}
+workflow:
+  university-response-deadline: ${UNIVERSITY_RESPONSE_DEADLINE:P7D}
+storage:
+  upload-dir: ${UPLOAD_DIR:./uploads}

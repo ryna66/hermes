@@ -1,4 +1,5 @@
 package in.sih.platform.project;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
-public interface MilestoneRepository extends JpaRepository<Milestone, UUID> { }
+public interface MilestoneRepository extends JpaRepository<Milestone, UUID> {     java.util.List<Milestone> findByProjectId(UUID projectId);
+}

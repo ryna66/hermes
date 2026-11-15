@@ -47,6 +47,26 @@ public class Challenge extends MutableEntity {
     private AssignmentResponse assignmentResponse;
     @Version @Column(name = "version", nullable = false)
     private long version;
+    @Column(name = "district", nullable = false)
+    private String district = "Unknown";
+    @Column(name = "affected_people", nullable = false)
+    private int affectedPeople = 1;
+    @Column(name = "photo_path", columnDefinition = "text")
+    private String photoPath;
+    @Column(name = "audio_path", columnDefinition = "text")
+    private String audioPath;
+    @Column(name = "fixed_confirmed_at")
+    private Instant fixedConfirmedAt;
+    public String getDistrict() { return district; }
+    public void setDistrict(String value) { district = value; }
+    public int getAffectedPeople() { return affectedPeople; }
+    public void setAffectedPeople(int value) { affectedPeople = value; }
+    public String getPhotoPath() { return photoPath; }
+    public void setPhotoPath(String value) { photoPath = value; }
+    public String getAudioPath() { return audioPath; }
+    public void setAudioPath(String value) { audioPath = value; }
+    public Instant getFixedConfirmedAt() { return fixedConfirmedAt; }
+    public void setFixedConfirmedAt(Instant value) { fixedConfirmedAt = value; }
     public User getSubmittedBy() { return submittedBy; }
     public void setSubmittedBy(User submittedBy) { this.submittedBy = submittedBy; }
     public String getTitle() { return title; }
