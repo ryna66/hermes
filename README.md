@@ -51,6 +51,8 @@ mvn -f core-platform/pom.xml clean verify
 
 Use a Java 21 `JAVA_HOME` (macOS: `export JAVA_HOME=$(/usr/libexec/java_home -v 21)`). Default profile is `dev`: Flyway creates all tables, Hibernate validates mappings, then the dev-only seeder logs 10 universities, 30 faculty, 20 challenges, 5 industry organizations, one government organization and five users (one per role). Submission events and notifications accompany seeded challenges. H2 data disappears when the JVM stops.
 
+The Maven build automatically selects an installed Java 21 JDK for compilation and tests, even if `mvn --version` reports another Java version. A Java 21 JDK must be installed; for a nonstandard installation, set `JAVA21_HOME` to its directory or register it in `~/.m2/toolchains.xml`. This uses Maven's [JDK toolchain discovery](https://maven.apache.org/plugins/maven-toolchains-plugin/toolchains/jdk-discovery.html). Without a matching JDK, the build stops during validation. Setting only the Java bytecode target does not select the test JVM: running tests on Java 25 previously caused Mockito's Byte Buddy instrumentation to fail with `Java 25 (69) is not supported`. Keep `JAVA_HOME` on Java 21 when using `spring-boot:run` directly.
+
 - Swagger UI: http://localhost:8080/swagger-ui/index.html
 - OpenAPI JSON: http://localhost:8080/v3/api-docs
 - Health: http://localhost:8080/actuator/health
