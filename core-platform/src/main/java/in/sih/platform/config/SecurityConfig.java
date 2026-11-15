@@ -25,10 +25,11 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/actuator/health").permitAll()
+                .requestMatchers("/", "/login", "/explore", "/challenges/*", "/universities/*/departments", "/pages/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/otp/request", "/api/auth/otp/verify").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/challenges", "/api/challenges/*").permitAll()
                 .requestMatchers("/api/**").authenticated()
-                .anyRequest().denyAll())
+                .anyRequest().authenticated())
             .oauth2ResourceServer(resource -> resource.jwt(jwt -> jwt.jwtAuthenticationConverter(converter)))
             .build();
     }
