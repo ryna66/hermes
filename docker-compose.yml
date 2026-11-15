@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16
+    profiles: [database]
+    environment:
+      POSTGRES_DB: sih
+      POSTGRES_USER: sih
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD before starting PostgreSQL}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sih -d sih"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+volumes:
+  postgres_data:
