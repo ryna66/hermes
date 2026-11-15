@@ -8,6 +8,9 @@ public interface AiClient {
     default Draft draftProposal(String title, String description, String category, String university, java.util.List<String> expertise) {
         throw new IllegalStateException("Proposal AI unavailable");
     }
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
+    record Transcription(String text, double confidence) { }
+    default Transcription transcribe(String audioBase64, String mimeType, String language) { throw new IllegalStateException("Transcription unavailable"); }
     Classification classify(String title, String description);
     Embedding embed(String text);
 }

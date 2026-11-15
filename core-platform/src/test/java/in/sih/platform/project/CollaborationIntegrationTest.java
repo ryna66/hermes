@@ -52,6 +52,12 @@ class CollaborationIntegrationTest {
     }
     UUID project()throws Exception{return UUID.fromString(send(post("/api/challenges/"+assigned()+"/project"),Role.UNIVERSITY,Map.of("title","Water project","proposalText","Survey, prototype, pilot","teamName","Water team"),201).get("id").asText());}
     @Test void draftFallbackLowConfidenceAndGeneratedAreAlwaysLabeled()throws Exception {
+        // Own expertise is a controlled fixture; unrelated dev faculty must not reach the AI.
+        UUID universityId=user(Role.UNIVERSITY).getOrganization().getId();
+        for(var profile:faculty.findAll()) {
+            profile.getExpertiseTags().clear();
+            profile.getExpertiseTags().add(profile.getOrganization().getId().equals(universityId)?"water treatment":"foreign expertise");
+        }
         UUID c=assigned();String path="/api/challenges/"+c+"/proposal-draft";
         when(ai.draftProposal(anyString(),anyString(),anyString(),anyString(),anyList())).thenThrow(new IllegalStateException());
         var fallback=send(post(path),Role.UNIVERSITY,null,200);assertTrue(fallback.get("draft").asBoolean());assertTrue(fallback.get("proposal").asText().startsWith("DRAFT"));assertEquals("TEMPLATE_FALLBACK",fallback.get("aiStatus").asText());
@@ -102,6 +108,11 @@ class CollaborationIntegrationTest {
         workflow.genericTransition(projects.findById(id).orElseThrow().getChallenge().getId(),user(Role.UNIVERSITY),new WorkflowService.Command(ChallengeStatus.PROTOTYPE,null,null,null,null));
     }
     @Test void fundingValidationFirstPledgeAndAnalytics()throws Exception {
+        long initialPledges=send(get("/api/industry/pledges"),Role.INDUSTRY,null,200).get("totalElements").asLong();
+        long initialDiscovery=send(get("/api/industry/matched-problems"),Role.INDUSTRY,null,200).get("totalElements").asLong();
+        var initialDashboard=send(get("/api/government/analytics"),Role.GOVERNMENT,null,200);
+        var initialFunding=initialDashboard.get("fundingByCurrency").path("INR").decimalValue();
+        long initialConnected=initialDashboard.get("byStatus").get("INDUSTRY_CONNECTED").asLong();
         UUID id=project();String path="/api/projects/"+id+"/pledges";long eventCount=events.count();
         send(post(path),Role.INDUSTRY,Map.of("supportType","FUNDING","description","Grant"),400);
         send(post(path),Role.INDUSTRY,Map.of("supportType","FUNDING","description","Grant","amount",-1,"currency","INR"),400);
@@ -110,10 +121,10 @@ class CollaborationIntegrationTest {
         assertTrue(notifications.findAll().stream().anyMatch(n->n.getRecipient().getId().equals(user(Role.INDUSTRY).getId())));
         for(String type:List.of("EQUIPMENT","MENTORSHIP","PILOT_SITE"))send(post(path),Role.INDUSTRY,Map.of("supportType",type,"description","Support"),201);
         assertEquals(eventCount+1,events.count());
-        assertEquals(4,send(get("/api/industry/pledges"),Role.INDUSTRY,null,200).get("totalElements").asInt());
+        assertEquals(initialPledges+4,send(get("/api/industry/pledges"),Role.INDUSTRY,null,200).get("totalElements").asLong());
         var dashboard=send(get("/api/government/analytics"),Role.GOVERNMENT,null,200);
-        assertEquals(100,dashboard.get("fundingByCurrency").get("INR").asInt());assertEquals(1,dashboard.get("byStatus").get("INDUSTRY_CONNECTED").asInt());assertTrue(dashboard.get("stageSamples").get("ASSIGNED").asInt()>0);
-        assertEquals(1,send(get("/api/industry/matched-problems"),Role.INDUSTRY,null,200).get("totalElements").asInt());
+        assertEquals(0,initialFunding.add(new java.math.BigDecimal("100")).compareTo(dashboard.get("fundingByCurrency").get("INR").decimalValue()));assertEquals(initialConnected+1,dashboard.get("byStatus").get("INDUSTRY_CONNECTED").asLong());assertTrue(dashboard.get("stageSamples").get("ASSIGNED").asInt()>0);
+        assertEquals(initialDiscovery+1,send(get("/api/industry/matched-problems"),Role.INDUSTRY,null,200).get("totalElements").asLong());
     }
     @Test void notificationsArePrivateAndReadIsIdempotent()throws Exception {
         project();var n=notifications.findAll().stream().filter(v->v.getRecipient().getId().equals(user(Role.CITIZEN).getId())).findFirst().orElseThrow();
@@ -126,9 +137,16 @@ class CollaborationIntegrationTest {
         UUID first=project(), second=project();
         var m=send(post("/api/projects/"+first+"/milestones"),Role.UNIVERSITY,Map.of("title","Build","description","Build","dueDate","2030-01-01","status","PENDING"),201);
         send(patch("/api/projects/"+second+"/milestones/"+m.get("id").asText()),Role.UNIVERSITY,Map.of("title","Build","description","Build","dueDate","2030-01-01","status","PENDING"),403);
-        send(post("/api/projects/"+first+"/pledges"),Role.INDUSTRY,Map.of("supportType","MENTORSHIP","description","Training"),201);
+        var createdPledge=send(post("/api/projects/"+first+"/pledges"),Role.INDUSTRY,Map.of("supportType","MENTORSHIP","description","Training"),201);
         User industry=user(Role.INDUSTRY);industry.setOrganization(organizations.findAll().stream().filter(o->o.getType()==OrganizationType.INDUSTRY&&!o.getId().equals(industry.getOrganization().getId())).findFirst().orElseThrow());
-        assertEquals(0,send(get("/api/industry/pledges"),Role.INDUSTRY,null,200).get("totalElements").asInt());
+        var expectedIds=pledges.findAll().stream()
+                .filter(p->p.getIndustryOrganization().getId().equals(industry.getOrganization().getId()))
+                .map(p->p.getId().toString()).collect(java.util.stream.Collectors.toSet());
+        var visible=send(get("/api/industry/pledges?size=100"),Role.INDUSTRY,null,200);
+        Set<String> actualIds=new HashSet<>();visible.get("content").forEach(p->actualIds.add(p.get("id").asText()));
+        assertEquals(expectedIds,actualIds);
+        assertEquals(expectedIds.size(),visible.get("totalElements").asInt());
+        assertFalse(actualIds.contains(createdPledge.get("id").asText()));
     }
     @Test void foreignUniversityAndAnonymousCannotReadOrMutate()throws Exception {
         UUID id=project();User u=user(Role.UNIVERSITY);u.setOrganization(organizations.findAll().stream().filter(o->o.getType()==OrganizationType.UNIVERSITY&&!o.getId().equals(u.getOrganization().getId())).findFirst().orElseThrow());

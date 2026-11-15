@@ -15,7 +15,7 @@ public class AnalyticsService {
     public AnalyticsService(ChallengeRepository challenges,ProjectRepository projects,PledgeRepository pledges,ChallengeEventRepository events){this.challenges=challenges;this.projects=projects;this.pledges=pledges;this.events=events;}
     public record Dashboard(Map<String,Long> byStatus,Map<String,Long> byCategory,Map<String,Long> byDistrict,long open,long resolved,long rejected,
         Map<String,Long> universityParticipation,Map<String,Long> industryPledges,Map<String,Long> pledgesByType,Map<String,BigDecimal> fundingByCurrency,
-        Map<String,Double> averageStageSeconds,Map<String,Long> stageSamples) {}
+        Map<String,Double> averageStageSeconds,Map<String,Long> stageSamples, long uniqueIncidents) {}
     private void count(Map<String,Long> map,String key){map.merge(key,1L,Long::sum);}
     public Dashboard dashboard(){
         Map<String,Long> status=new TreeMap<>(),category=new TreeMap<>(),district=new TreeMap<>(),universities=new TreeMap<>(),industry=new TreeMap<>(),types=new TreeMap<>(),samples=new TreeMap<>();
@@ -38,6 +38,6 @@ public class AnalyticsService {
         }
         for(var p:pledges.findAll()){count(industry,p.getIndustryOrganization().getId().toString());count(types,p.getSupportType().name());if(p.getSupportType()==SupportType.FUNDING)funding.merge(p.getCurrency(),p.getAmount(),BigDecimal::add);}
         durations.replaceAll((k,v)->v/samples.get(k));
-        return new Dashboard(status,category,district,open,resolved,rejected,universities,industry,types,funding,durations,samples);
+        return new Dashboard(status,category,district,open,resolved,rejected,universities,industry,types,funding,durations,samples,challenges.findAll().stream().filter(c -> c.getDuplicateOf()==null).count());
     }
 }

@@ -39,7 +39,7 @@ public class ChallengeController {
         return challenges.explore(district, category, status, page, size);
     }
     @GetMapping("/api/challenges/{id}")
-    public ChallengeService.View detail(@PathVariable UUID id) { return challenges.detail(id); }
+    public ChallengeService.Detail detail(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) { return challenges.detail(id, jwt==null ? null : in.sih.platform.user.Role.valueOf(jwt.getClaimAsString("role"))); }
     public record Transition(@NotNull ChallengeStatus toState, String reason, Category category, String impactSummary) { }
     @PostMapping("/api/challenges/{id}/transitions")
     @PreAuthorize("hasAnyRole('ADMIN','UNIVERSITY','GOVERNMENT')")

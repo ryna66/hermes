@@ -49,7 +49,7 @@ mvn -f core-platform/pom.xml clean verify
 (cd ai-service && .venv/bin/python -m pytest -q)
 ```
 
-Use a Java 21 `JAVA_HOME` (macOS: `export JAVA_HOME=$(/usr/libexec/java_home -v 21)`). Default profile is `dev`: Flyway creates all tables, Hibernate validates mappings, then the dev-only seeder logs 10 universities, 30 faculty, 20 challenges, 5 industry organizations, one government organization and five users (one per role). Submission events and notifications accompany seeded challenges. H2 data disappears when the JVM stops.
+Use a Java 21 `JAVA_HOME` (macOS: `export JAVA_HOME=$(/usr/libexec/java_home -v 21)`). Default profile is `dev`: Flyway creates all tables, Hibernate validates mappings, then the dev-only seeder logs 10 clearly synthetic universities, 30 fictional faculty profiles, 20 challenges across seven categories and all lifecycle states, 5 synthetic industry organizations, one synthetic government organization and five users (one per role). Challenges use real Jharkhand district names and approximate district-center coordinates. Seed data includes lifecycle events and notifications, four project/team records, pledges and completed pilot milestones; one report is a merged duplicate and one challenge is marked for manual review. All institution, company and faculty labels are fictional. H2 data disappears when the JVM stops.
 
 The Maven build automatically selects an installed Java 21 JDK for compilation and tests, even if `mvn --version` reports another Java version. A Java 21 JDK must be installed; for a nonstandard installation, set `JAVA21_HOME` to its directory or register it in `~/.m2/toolchains.xml`. This uses Maven's [JDK toolchain discovery](https://maven.apache.org/plugins/maven-toolchains-plugin/toolchains/jdk-discovery.html). Without a matching JDK, the build stops during validation. Setting only the Java bytecode target does not select the test JVM: running tests on Java 25 previously caused Mockito's Byte Buddy instrumentation to fail with `Java 25 (69) is not supported`. Keep `JAVA_HOME` on Java 21 when using `spring-boot:run` directly.
 
@@ -98,13 +98,13 @@ API clients use `Authorization: Bearer <accessToken>`; no session or cookie auth
 
 Seeded login credentials (dev only; no passwords or fixed OTP):
 
-| Role | Phone | Organization |
-| --- | --- | --- |
-| CITIZEN | `9000000000` | — |
-| ADMIN | `9000000001` | — |
+| Role       | Phone        | Organization |
+| ---------- | ------------ | ------------ |
+| CITIZEN    | `9000000000` | —            |
+| ADMIN      | `9000000001` | —            |
 | UNIVERSITY | `9000000002` | University 1 |
-| INDUSTRY | `9000000003` | Industry 1 |
-| GOVERNMENT | `9000000004` | Government |
+| INDUSTRY   | `9000000003` | Industry 1   |
+| GOVERNMENT | `9000000004` | Government   |
 
 Each uses the OTP request/verify flow above; read a fresh six-digit code from the core console. Swagger's **Authorize** accepts the returned access token.
 
@@ -117,7 +117,15 @@ Run auth integration tests with `mvn -f core-platform/pom.xml -Dtest=AuthIntegra
 `POST /api/challenges` requires a citizen token. Send JSON such as:
 
 ```json
-{"title":"Unsafe water","description":"Village taps supply dirty water","latitude":20.1,"longitude":77.1,"district":"Example","category":"WATER_SANITATION","affected_people":12}
+{
+  "title": "Unsafe water",
+  "description": "Village taps supply dirty water",
+  "latitude": 20.1,
+  "longitude": 77.1,
+  "district": "Example",
+  "category": "WATER_SANITATION",
+  "affected_people": 12
+}
 ```
 
 `category` may be omitted or null; `affected_people` (also accepted as `affectedPeople`) defaults to 1 and must be positive. Title, description, district and valid coordinates are required. To attach files, use multipart form data with an `application/json` part named `challenge` containing the same JSON, and optional `photo` (`image/*`) and `audio` (`audio/*`) parts. Uploads use generated filenames under `UPLOAD_DIR` (default `./uploads`, relative to the application working directory); paths are stored privately in the database. Rolled-back transactions remove uploaded files. Spring's default multipart limits apply (1 MB per file, 10 MB per request). Local disk must persist alongside the database if uploads are to survive deployment/restarts.
@@ -147,23 +155,22 @@ Admin APIs (Bearer JWT required):
 
 University accept/decline must arrive strictly before the stored UTC deadline (`UNIVERSITY_RESPONSE_DEADLINE`, default `P7D`). The deadline job runs every 60 seconds (`workflow.deadline-check-interval` in milliseconds), flags unanswered overdue assignments once, and notifies users. State stays ASSIGNED until admin recall and reassignment. Response history survives recall/decline and informs subsequent rankings. V3 adds portable matching flags and assignment history. V1–V3 migrations and schema validation were verified on H2 and PostgreSQL 16; see the verification section below.
 
-
 ## Verification and production readiness
 
 Verified 2026-11-15 on Java 21.0.9, Maven 3.9.11, Python 3.12.0, mock-mode FastAPI/Uvicorn and PostgreSQL 16. Python 3.11 was not installed locally and was not separately tested.
 
 ## Final results
 
-| Check | Result | Evidence |
-| --- | --- | --- |
-| Full core suite: `mvn -f core-platform/pom.xml clean verify` with Java 21 | PASS | 692 tests; 0 failures, errors or skips; executable jar packaged |
-| Full AI suite: `cd ai-service && python3 -m pytest -q` | PASS | 7 tests |
-| Live story, core + mock AI running | PASS | `python3 scripts/e2e.py --core-log /tmp/sih-m9-core.log --ai up`; challenge `d66a74fd-f646-4088-ad66-a3bd5834a1ee` |
-| Same live story, AI process stopped, core still running | PASS | `python3 scripts/e2e.py --core-log /tmp/sih-m9-core.log --ai down`; challenge `f35f2ede-e5ba-45d2-8a3a-2a3f64ff63de` |
-| H2 live startup and health | PASS | Dev seeder, V1–V3 migrations, Hibernate validation; `/actuator/health` UP |
-| Live Swagger UI and OpenAPI | PASS | `/swagger-ui/index.html` and `/v3/api-docs` HTTP 200 |
-| PostgreSQL 16 fresh migration and prod-profile startup | PASS | Isolated `sih_m9` database on port 5433 applied V1–V3; all Flyway success flags true; Hibernate validation passed; health UP on 8081 |
-| Bare HTML page routing and role gates | PASS | 8 PageController tests included in core suite; no browser form journey claimed |
+| Check                                                                     | Result | Evidence                                                                                                                             |
+| ------------------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Full core suite: `mvn -f core-platform/pom.xml clean verify` with Java 21 | PASS   | 692 tests; 0 failures, errors or skips; executable jar packaged                                                                      |
+| Full AI suite: `cd ai-service && python3 -m pytest -q`                    | PASS   | 7 tests                                                                                                                              |
+| Live story, core + mock AI running                                        | PASS   | `python3 scripts/e2e.py --core-log /tmp/sih-m9-core.log --ai up`; challenge `d66a74fd-f646-4088-ad66-a3bd5834a1ee`                   |
+| Same live story, AI process stopped, core still running                   | PASS   | `python3 scripts/e2e.py --core-log /tmp/sih-m9-core.log --ai down`; challenge `f35f2ede-e5ba-45d2-8a3a-2a3f64ff63de`                 |
+| H2 live startup and health                                                | PASS   | Dev seeder, V1–V3 migrations, Hibernate validation; `/actuator/health` UP                                                            |
+| Live Swagger UI and OpenAPI                                               | PASS   | `/swagger-ui/index.html` and `/v3/api-docs` HTTP 200                                                                                 |
+| PostgreSQL 16 fresh migration and prod-profile startup                    | PASS   | Isolated `sih_m9` database on port 5433 applied V1–V3; all Flyway success flags true; Hibernate validation passed; health UP on 8081 |
+| Bare HTML page routing and role gates                                     | PASS   | 8 PageController tests included in core suite; no browser form journey claimed                                                       |
 
 First live attempts failed classification/proposal checks. Fixes: force Java AI HTTP/1.1 (Uvicorn rejected h2c upgrade request bodies); populate proposal expertise from faculty; eagerly fetch actor organization for access after the lookup transaction ends. Regression assertions cover each issue. Both full suites and both live scenarios passed after fixes. A script assertion expecting government notifications was corrected: planned recipients are citizens, admins, relevant university users and supporting industry users. All roles can read their own notification endpoint.
 
@@ -181,13 +188,13 @@ PostgreSQL acceptance used a separate database/role and prod profile without see
 
 ## What is mocked and what is real
 
-| Mocked / placeholder | Real implementation verified |
-| --- | --- |
-| Dev console OTP delivery; pending OTPs in memory | Expiry, single use, attempt limits, signed JWTs and role/organization authorization |
-| Keyword classification, hash embeddings, transcription stub, proposal templates | Java-to-FastAPI HTTP contracts, confidence validation, timeouts and outage fallback |
-| Synthetic universities, faculty, industry organizations and citizens | Spring Data JPA persistence, Flyway migrations, workflow guards, proposal/team/milestone and pledge records |
-| Console SMS/email placeholders; pledges are promises, not payments | Persisted events, private in-app notifications, matching rules, Haversine/cosine calculations and analytics |
-| Scenario prototype results and deployment/impact summaries | Required evidence guards and government authorization; no independent measurement of water safety |
+| Mocked / placeholder                                                            | Real implementation verified                                                                                |
+| ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Dev console OTP delivery; pending OTPs in memory                                | Expiry, single use, attempt limits, signed JWTs and role/organization authorization                         |
+| Keyword classification, hash embeddings, transcription stub, proposal templates | Java-to-FastAPI HTTP contracts, confidence validation, timeouts and outage fallback                         |
+| Synthetic universities, faculty, industry organizations and citizens            | Spring Data JPA persistence, Flyway migrations, workflow guards, proposal/team/milestone and pledge records |
+| Console SMS/email placeholders; pledges are promises, not payments              | Persisted events, private in-app notifications, matching rules, Haversine/cosine calculations and analytics |
+| Scenario prototype results and deployment/impact summaries                      | Required evidence guards and government authorization; no independent measurement of water safety           |
 
 ## Production work
 
@@ -198,3 +205,9 @@ PostgreSQL acceptance used a separate database/role and prod profile without see
 - Replace full-record matching/discovery/analytics scans and per-ranking faculty embedding calls as volume grows; cache embeddings and evaluate PostGIS/pgvector behind existing interfaces. Define whether analytics should exclude merged duplicates.
 - Complete planned API gaps: own citizen challenges, transcription intake, organization/department faculty details and updates, university inbox and privileged-user provisioning. Bare pages expose API links and gaps; browser forms, secure cookie auth and CSRF-protected form flows remain absent. Phase 1 has no CSS or frontend framework.
 - Add operational alerting, audit access/retention, privacy controls, load testing and provider failure monitoring. Pledges do not transfer funds; deployment/impact entries need a real-world verification process before outcome claims.
+
+## Separate frontend configuration
+
+`CORS_ALLOWED_ORIGINS` (Spring property `cors.allowed-origins`) accepts comma-separated origins. Dev defaults to `http://localhost:5173,http://localhost:3000`; prod defaults to no allowed origins. Allowed headers are Authorization and Content-Type; API methods and unauthenticated preflight are supported. Swagger UI exposes the `bearerAuth` JWT scheme.
+
+API errors contain `timestamp`, `status`, `code`, `message` and `path`; validation errors also contain `fieldErrors`. Analytics adds `uniqueIncidents`, counting reports without a duplicate parent. Challenge detail adds `allowedTransitions`: targets from the state/role table, without evaluating evidence or organization guards; anonymous callers receive an empty list.

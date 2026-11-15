@@ -27,6 +27,7 @@ public final class TransitionPolicy {
         Map.entry(new Edge(PILOT, DEPLOYED), Set.of(GOVERNMENT)),
         Map.entry(new Edge(DEPLOYED, IMPACT_EVALUATED), Set.of(GOVERNMENT)));
 
+    public static List<ChallengeStatus> targets(ChallengeStatus state, Role role) { return ALLOWED.entrySet().stream().filter(e -> e.getKey().from()==state && e.getValue().contains(role)).map(e -> e.getKey().to()).sorted().toList(); }
     public static void check(ChallengeStatus from, ChallengeStatus to, Role role) {
         Set<Role> roles = ALLOWED.get(new Edge(from, to));
         if (roles == null) throw new ResponseStatusException(HttpStatus.CONFLICT,

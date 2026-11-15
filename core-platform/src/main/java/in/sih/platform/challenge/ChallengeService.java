@@ -61,5 +61,9 @@ public class ChallengeService {
         return challenges.findAll(filter, PageRequest.of(page, size, Sort.by(Sort.Order.desc("createdAt"), Sort.Order.asc("id")))).map(View::of);
     }
     @Transactional(readOnly = true)
-    public View detail(UUID id) { return View.of(workflow.requireChallenge(id)); }
+    public record Timeline(ChallengeStatus fromState, ChallengeStatus toState, Instant createdAt) { }
+    public record Detail(@com.fasterxml.jackson.annotation.JsonUnwrapped View challenge, java.util.List<Timeline> timeline, java.util.List<ChallengeStatus> allowedTransitions) { }
+    @org.springframework.beans.factory.annotation.Autowired private ChallengeEventRepository events;
+    public Detail detail(UUID id, Role role) { return new Detail(View.of(workflow.requireChallenge(id)), events.findByChallengeIdOrderByCreatedAtAsc(id).stream()
+            .map(e -> new Timeline(e.getFromState(), e.getToState(), e.getCreatedAt())).toList(), role==null ? java.util.List.of() : TransitionPolicy.targets(workflow.requireChallenge(id).getStatus(),role)); }
 }

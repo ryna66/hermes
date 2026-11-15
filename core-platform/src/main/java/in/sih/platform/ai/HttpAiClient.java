@@ -42,6 +42,9 @@ public class HttpAiClient implements AiClient {
             throw new IllegalStateException("Invalid proposal");
         return result;
     }
+    public Transcription transcribe(String audioBase64, String mimeType, String language) {
+        return post("/transcribe", Map.of("audio_base64", audioBase64, "mime_type", mimeType, "language", language), Transcription.class);
+    }
     public Classification classify(String title, String description) {
         Classification result = post("/classify", Map.of("title", title, "description", description), Classification.class);
         if (result == null || result.category() == null || !validConfidence(result.confidence())) throw new IllegalStateException("Invalid classification");
