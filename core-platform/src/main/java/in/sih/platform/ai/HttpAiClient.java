@@ -33,6 +33,13 @@ public class HttpAiClient implements AiClient {
             Thread.currentThread().interrupt(); throw new IllegalStateException("AI interrupted", e);
         } catch (Exception e) { throw new IllegalStateException("AI unavailable or invalid response", e); }
     }
+    public Draft draftProposal(String title, String description, String category, String university, java.util.List<String> expertise) {
+        Draft result = post("/draft-proposal", Map.of("challenge", Map.of("title", title, "description", description, "category", category),
+                "university", Map.of("name", university, "expertise", expertise)), Draft.class);
+        if (result == null || result.proposal() == null || result.proposal().isBlank() || !validConfidence(result.confidence()))
+            throw new IllegalStateException("Invalid proposal");
+        return result;
+    }
     public Classification classify(String title, String description) {
         Classification result = post("/classify", Map.of("title", title, "description", description), Classification.class);
         if (result == null || result.category() == null || !validConfidence(result.confidence())) throw new IllegalStateException("Invalid classification");

@@ -16,8 +16,9 @@ public class NotificationService {
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
     private final NotificationRepository notifications;
     private final UserRepository users;
-    public NotificationService(NotificationRepository notifications, UserRepository users) {
-        this.notifications = notifications; this.users = users;
+    private final in.sih.platform.pledge.PledgeRepository pledges;
+    public NotificationService(NotificationRepository notifications, UserRepository users, in.sih.platform.pledge.PledgeRepository pledges) {
+        this.notifications = notifications; this.users = users; this.pledges = pledges;
     }
     public void notify(Challenge challenge, ChallengeEvent event, Organization previousUniversity, String message) {
         Map<UUID, User> recipients = new LinkedHashMap<>();
@@ -27,6 +28,9 @@ public class NotificationService {
             if (university != null) users.findByOrganizationIdAndActiveTrue(university.getId())
                     .forEach(u -> recipients.put(u.getId(), u));
         }
+        pledges.findByProjectChallengeId(challenge.getId()).stream()
+                .forEach(p -> users.findByOrganizationIdAndActiveTrue(p.getIndustryOrganization().getId())
+                        .forEach(u -> recipients.put(u.getId(), u)));
         recipients.values().forEach(user -> {
             Notification notification = new Notification();
             notification.setRecipient(user); notification.setChallenge(challenge);
