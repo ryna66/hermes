@@ -1,0 +1,3 @@
+import type { Category, Status } from './types'
+export const categories: Category[] = ['WATER_SANITATION','HEALTH','EDUCATION','AGRICULTURE','ENVIRONMENT','INFRASTRUCTURE','OTHER']
+export const statuses: Status[] = ['SUBMITTED','VALIDATED','CATEGORIZED','ASSIGNED','PROPOSAL_CREATED','INDUSTRY_CONNECTED','PROTOTYPE','PILOT','DEPLOYED','IMPACT_EVALUATED','REJECTED']

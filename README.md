@@ -211,3 +211,20 @@ PostgreSQL acceptance used a separate database/role and prod profile without see
 `CORS_ALLOWED_ORIGINS` (Spring property `cors.allowed-origins`) accepts comma-separated origins. Dev defaults to `http://localhost:5173,http://localhost:3000`; prod defaults to no allowed origins. Allowed headers are Authorization and Content-Type; API methods and unauthenticated preflight are supported. Swagger UI exposes the `bearerAuth` JWT scheme.
 
 API errors contain `timestamp`, `status`, `code`, `message` and `path`; validation errors also contain `fieldErrors`. Analytics adds `uniqueIncidents`, counting reports without a duplicate parent. Challenge detail adds `allowedTransitions`: targets from the state/role table, without evaluating evidence or organization guards; anonymous callers receive an empty list.
+
+## Frontend browser verification
+
+See [frontend live browser tests](frontend/README.md#live-browser-tests-milestone-19b)
+for service prerequisites and the five-role UI scenario. With dev core, mock AI
+and Vite already running, execute from the repository root:
+
+```sh
+cd frontend
+SIH_CORE_LOG=/tmp/sih-core.log npm run e2e
+# Stop only AI, leaving core and Vite running, then:
+E2E_AI_DOWN=1 SIH_CORE_LOG=/tmp/sih-core.log npm run e2e:fallback
+```
+
+`E2E_BASE_URL` overrides the default `http://localhost:5173`. Restart AI after the
+fallback run. Browser acceptance is pending user execution; lint/build and test
+discovery alone do not establish a live pass.
