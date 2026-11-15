@@ -26,13 +26,14 @@ public class WorkflowService {
     private final PledgeRepository pledges;
     private final Clock clock;
     private final Duration responseDeadline;
+    private final in.sih.platform.matching.AssignmentRecordRepository assignments;
     public WorkflowService(ChallengeRepository challenges, ChallengeEventRepository events,
             NotificationService notifications, OrganizationRepository organizations, ProjectRepository projects,
             MilestoneRepository milestones, PledgeRepository pledges, Clock clock,
-            @Value("${workflow.university-response-deadline:P7D}") Duration responseDeadline) {
+            @Value("${workflow.university-response-deadline:P7D}") Duration responseDeadline, in.sih.platform.matching.AssignmentRecordRepository assignments) {
         this.challenges = challenges; this.events = events; this.notifications = notifications;
         this.organizations = organizations; this.projects = projects; this.milestones = milestones;
-        this.pledges = pledges; this.clock = clock; this.responseDeadline = responseDeadline;
+        this.pledges = pledges; this.clock = clock; this.responseDeadline = responseDeadline; this.assignments = assignments;
     }
     public record Command(ChallengeStatus toState, String reason, Category category, UUID universityId, String impactSummary) { }
     public Challenge requireChallenge(UUID id) {
@@ -54,6 +55,10 @@ public class WorkflowService {
             case REJECTED, PILOT, DEPLOYED -> requireText(command.reason(), "Reason required");
             case CATEGORIZED -> {
                 if (from == ChallengeStatus.ASSIGNED) {
+                    assignments.findFirstByChallengeIdOrderByCreatedAtDesc(id).ifPresent(a -> {
+                        if (a.getResponse().equals("PENDING")) a.setResponse(actor.getRole()==Role.UNIVERSITY ? "DECLINED" : "RECALLED");
+                    });
+                    c.setReassignmentRequired(false);
                     c.setAssignedUniversity(null); c.setAssignedAt(null); c.setResponseDeadline(null); c.setAssignmentResponse(null);
                 } else {
                     if (command.category() != null) c.setCategory(command.category());
@@ -66,6 +71,9 @@ public class WorkflowService {
                 Organization university = organizations.findById(command.universityId())
                         .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "University not found"));
                 require(university.getType() == OrganizationType.UNIVERSITY, "Selected organization must be a university");
+                require(c.getDuplicateOf() == null, "Merged duplicates cannot be allocated");
+                assignments.save(new in.sih.platform.matching.AssignmentRecord(id, university.getId()));
+                c.setReassignmentRequired(false);
                 c.setAssignedUniversity(university); c.setAssignedAt(clock.instant());
                 c.setResponseDeadline(clock.instant().plus(responseDeadline)); c.setAssignmentResponse(AssignmentResponse.PENDING);
             }
@@ -115,10 +123,13 @@ public class WorkflowService {
         Challenge c = requireChallenge(id); requireUniversity(c, actor);
         if (c.getStatus() != ChallengeStatus.ASSIGNED) throw new ResponseStatusException(HttpStatus.CONFLICT, "Challenge is not ASSIGNED");
         if (c.getAssignmentResponse() != AssignmentResponse.PENDING) throw new ResponseStatusException(HttpStatus.CONFLICT, "Assignment already answered");
+        if (c.getResponseDeadline() != null && !clock.instant().isBefore(c.getResponseDeadline()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Assignment deadline has passed; admin reassignment required");
         require(response == AssignmentResponse.ACCEPTED || response == AssignmentResponse.DECLINED, "Accept or decline required");
         if (response == AssignmentResponse.DECLINED)
             return transition(id, actor, new Command(ChallengeStatus.CATEGORIZED, reason, null, null, null));
         c.setAssignmentResponse(response);
+        assignments.findFirstByChallengeIdOrderByCreatedAtDesc(id).ifPresent(a -> a.setResponse("ACCEPTED"));
         return c;
     }
     public Challenge confirmFixed(UUID id, User actor) {

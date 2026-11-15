@@ -45,6 +45,14 @@ public class Challenge extends MutableEntity {
     private Instant responseDeadline;
     @Enumerated(EnumType.STRING) @Column(name = "assignment_response", nullable = true)
     private AssignmentResponse assignmentResponse;
+    @Column(name = "duplicate_candidate", nullable = false)
+    private boolean duplicateCandidate;
+    @Column(name = "reassignment_required", nullable = false)
+    private boolean reassignmentRequired;
+    public boolean getDuplicateCandidate() { return duplicateCandidate; }
+    public void setDuplicateCandidate(boolean value) { duplicateCandidate = value; }
+    public boolean getReassignmentRequired() { return reassignmentRequired; }
+    public void setReassignmentRequired(boolean value) { reassignmentRequired = value; }
     @Version @Column(name = "version", nullable = false)
     private long version;
     @Column(name = "district", nullable = false)

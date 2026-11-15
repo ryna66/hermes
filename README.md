@@ -1,6 +1,6 @@
 # SIH26043
 
-Milestone 4: Java 21 / Maven 3.9+, Spring Boot 3.3.5 with OTP/JWT authentication, challenge intake, local uploads, explicit lifecycle rules and persisted notifications. AI calls are not implemented yet.
+Milestone 6: Java 21 / Maven 3.9+, Spring Boot 3.3.5 with OTP/JWT authentication, challenge intake, lifecycle rules, AI enrichment, duplicate review and university/faculty matching.
 
 Run from the repository root:
 
@@ -79,3 +79,18 @@ Run auth integration tests with `mvn -f core-platform/pom.xml -Dtest=AuthIntegra
 Submission and every transition persist an event and notifications atomically. Notifications go to the submitter, active admins and relevant university accounts (including the former university on recall/decline). Console SMS/email placeholders run after commit. New submissions await manual moderation; there are no AI calls.
 
 Run workflow checks with `mvn -f core-platform/pom.xml -Dtest=TransitionPolicyTest,WorkflowServiceTest,WorkflowIntegrationTest test`, then the full suite with `mvn -f core-platform/pom.xml test`. Mockito-based tests require JVM attachment permission on this machine.
+
+## AI enrichment and matching (milestone 6)
+
+Start `ai-service` as documented in its README, then start core-platform. `AI_BASE_URL` defaults to `http://localhost:8000`; `AI_TIMEOUT` defaults to `2s` per call (connection included, no retries), and `AI_CONFIDENCE_THRESHOLD` to `0.70`. Submissions call classify and embed, retain suggestions and model-tagged vectors, and stay SUBMITTED until admin validation. Invalid, low-confidence, failed or timed-out AI calls return a usable submission with `aiStatus=MANUAL_REVIEW` and internal moderation notes.
+
+Admin APIs (Bearer JWT required):
+
+- `GET /api/admin/challenges?queue=moderation|allocation|overdue&page=0&size=20` lists review details.
+- `PATCH /api/admin/challenges/{id}/classification` with `{"category":"HEALTH"}` confirms the category without bypassing workflow transitions.
+- `GET /api/admin/challenges/{id}/duplicates` lists compatible semantic matches within the configured radius. Defaults: `DUPLICATE_SIMILARITY_THRESHOLD=0.85`, `DUPLICATE_RADIUS_KM=10`; both boundaries are inclusive.
+- `POST /api/admin/challenges/{id}/merge` with `{"originalId":"uuid"}` links an unallocated duplicate and adds its affected people to the original exactly once. Merged duplicates cannot be allocated or used as originals; manual merges are allowed even when AI has no suggestion.
+- `GET /api/admin/challenges/{id}/university-matches` ranks universities by their best faculty score and includes ranked faculty and reasons. Scores combine embedding similarity (50%), category expertise (20%), proximity (15%), capacity (10%) and past acceptance rate (5%). No response history uses a neutral 50% acceptance rate. Only matching models and dimensions are compared. Faculty profile embeddings are requested when ranking; unavailable AI falls back to rules. This minimal implementation scans profiles/challenges in memory.
+- Existing `POST /api/admin/challenges/{id}/assignment` accepts any university selected by the admin, including one outside the ranking's top choice.
+
+University accept/decline must arrive strictly before the stored UTC deadline (`UNIVERSITY_RESPONSE_DEADLINE`, default `P7D`). The deadline job runs every 60 seconds (`workflow.deadline-check-interval` in milliseconds), flags unanswered overdue assignments once, and notifies users. State stays ASSIGNED until admin recall and reassignment. Response history survives recall/decline and informs subsequent rankings. V3 adds portable matching flags and assignment history; PostgreSQL acceptance remains pending.

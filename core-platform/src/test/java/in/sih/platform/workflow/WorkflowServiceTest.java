@@ -36,7 +36,7 @@ class WorkflowServiceTest {
         notifications = mock(NotificationService.class); organizations = mock(OrganizationRepository.class);
         projects = mock(ProjectRepository.class); milestones = mock(MilestoneRepository.class); pledges = mock(PledgeRepository.class);
         service = new WorkflowService(challenges, events, notifications, organizations, projects, milestones, pledges,
-                Clock.fixed(Instant.parse("2026-11-15T00:00:00Z"), ZoneOffset.UTC), Duration.ofDays(7));
+                Clock.fixed(Instant.parse("2026-11-15T00:00:00Z"), ZoneOffset.UTC), Duration.ofDays(7), mock(in.sih.platform.matching.AssignmentRecordRepository.class));
         university = id(new Organization()); university.setType(OrganizationType.UNIVERSITY);
         actor = id(new User()); actor.setActive(true); actor.setOrganization(university);
         User citizen = id(new User()); citizen.setRole(Role.CITIZEN);

@@ -19,8 +19,10 @@ public class ChallengeService {
     private final UserRepository users;
     private final WorkflowService workflow;
     private final LocalAttachmentStorage storage;
-    public ChallengeService(ChallengeRepository challenges, UserRepository users, WorkflowService workflow, LocalAttachmentStorage storage) {
-        this.challenges = challenges; this.users = users; this.workflow = workflow; this.storage = storage;
+    private final in.sih.platform.ai.ChallengeEnrichment enrichment;
+    private final in.sih.platform.matching.DuplicateService duplicates;
+    public ChallengeService(ChallengeRepository challenges, UserRepository users, WorkflowService workflow, LocalAttachmentStorage storage, in.sih.platform.ai.ChallengeEnrichment enrichment, in.sih.platform.matching.DuplicateService duplicates) {
+        this.challenges = challenges; this.users = users; this.workflow = workflow; this.storage = storage; this.enrichment = enrichment; this.duplicates = duplicates;
     }
     public User actor(UUID id) {
         return users.findById(id).filter(User::getActive)
@@ -28,11 +30,11 @@ public class ChallengeService {
     }
     public record View(UUID id, String title, String description, double latitude, double longitude,
                        String district, Category category, int affectedPeople, ChallengeStatus status,
-                       boolean hasPhoto, boolean hasAudio, Instant fixedConfirmedAt, Instant createdAt) {
+                       boolean hasPhoto, boolean hasAudio, Instant fixedConfirmedAt, Instant createdAt, String aiStatus) {
         public static View of(Challenge c) {
             return new View(c.getId(), c.getTitle(), c.getDescription(), c.getLatitude(), c.getLongitude(),
                     c.getDistrict(), c.getCategory(), c.getAffectedPeople(), c.getStatus(),
-                    c.getPhotoPath() != null, c.getAudioPath() != null, c.getFixedConfirmedAt(), c.getCreatedAt());
+                    c.getPhotoPath() != null, c.getAudioPath() != null, c.getFixedConfirmedAt(), c.getCreatedAt(), c.getModerationRequired() ? "MANUAL_REVIEW" : "ENRICHED");
         }
     }
     public View submit(UUID userId, ChallengeInput input, MultipartFile photo, MultipartFile audio) {
@@ -45,7 +47,8 @@ public class ChallengeService {
         c.setStatus(ChallengeStatus.SUBMITTED); c.setModerationRequired(true);
         c.setModerationReason("Awaiting manual moderation");
         c.setPhotoPath(storage.store(photo, "photo")); c.setAudioPath(storage.store(audio, "audio"));
-        challenges.save(c); workflow.submitted(c, actor);
+        enrichment.enrich(c);
+        challenges.save(c); duplicates.flag(c); workflow.submitted(c, actor);
         return View.of(c);
     }
     @Transactional(readOnly = true)
