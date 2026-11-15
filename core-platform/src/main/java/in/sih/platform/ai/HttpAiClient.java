@@ -18,7 +18,9 @@ public class HttpAiClient implements AiClient {
                         @Value("${ai.timeout:2s}") Duration timeout) {
         if (timeout.isNegative() || timeout.isZero()) throw new IllegalArgumentException("AI timeout must be positive");
         this.json = json; this.baseUrl = baseUrl; this.timeout = timeout;
-        http = HttpClient.newBuilder().connectTimeout(timeout).followRedirects(HttpClient.Redirect.NEVER).build();
+        // Uvicorn serves HTTP/1.1; avoid an h2c upgrade losing the request body.
+        http = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1)
+                .connectTimeout(timeout).followRedirects(HttpClient.Redirect.NEVER).build();
     }
     private <T> T post(String path, Object body, Class<T> type) {
         try {

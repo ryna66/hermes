@@ -25,7 +25,7 @@ public class ChallengeService {
         this.challenges = challenges; this.users = users; this.workflow = workflow; this.storage = storage; this.enrichment = enrichment; this.duplicates = duplicates;
     }
     public User actor(UUID id) {
-        return users.findById(id).filter(User::getActive)
+        return users.findWithOrganizationById(id).filter(User::getActive)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Account is unavailable"));
     }
     public record View(UUID id, String title, String description, double latitude, double longitude,

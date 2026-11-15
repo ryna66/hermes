@@ -71,10 +71,15 @@ public class CollaborationService {
     public Draft draft(UUID id,User u) {
         Challenge c=assigned(id,u);
         try {
-            var d=ai.draftProposal(c.getTitle(),c.getDescription(),c.getCategory()==null?"OTHER":c.getCategory().name(),u.getOrganization().getName(),List.of());
+            var expertise=faculty.findAll().stream()
+                    .filter(f->f.getOrganization().getId().equals(u.getOrganization().getId()))
+                    .flatMap(f->f.getExpertiseTags().stream()).filter(t->!t.isBlank()).distinct().sorted().toList();
+            if(expertise.isEmpty()) expertise=List.of("General research");
+            var d=ai.draftProposal(c.getTitle(),c.getDescription(),c.getCategory()==null?"OTHER":c.getCategory().name(),c.getAssignedUniversity().getName(),expertise);
             if(d==null || !HttpAiClient.validConfidence(d.confidence()) || d.confidence()<threshold || d.proposal()==null || d.proposal().isBlank()) throw new IllegalStateException();
             return new Draft("DRAFT — "+d.proposal(),true,"GENERATED");
         } catch(RuntimeException e) {
+            org.slf4j.LoggerFactory.getLogger(CollaborationService.class).debug("Proposal AI fallback",e);
             c.setModerationRequired(true); c.setModerationReason("Proposal AI unavailable or low confidence; manual review required");
             return new Draft("DRAFT — Proposal for "+c.getTitle()+"\nProblem: "+c.getDescription()+"\nObjectives: assess needs and define measurable outcomes.\nApproach: survey, develop a prototype, pilot and evaluate impact.\nTeam, budget and timeline: complete before submission.",true,"TEMPLATE_FALLBACK");
         }

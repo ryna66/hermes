@@ -58,8 +58,16 @@ class CollaborationIntegrationTest {
         assertTrue(challenges.findById(c).orElseThrow().getModerationRequired());
         doReturn(new AiClient.Draft("AI proposal",.9)).when(ai).draftProposal(anyString(),anyString(),anyString(),anyString(),anyList());
         assertEquals("DRAFT — AI proposal",send(post(path),Role.UNIVERSITY,null,200).get("proposal").asText());
+        verify(ai,atLeastOnce()).draftProposal(anyString(),anyString(),anyString(),eq("University 1"),eq(List.of("water treatment")));
         doReturn(new AiClient.Draft("Low",.1)).when(ai).draftProposal(anyString(),anyString(),anyString(),anyString(),anyList());
         assertEquals("TEMPLATE_FALLBACK",send(post(path),Role.UNIVERSITY,null,200).get("aiStatus").asText());
+    }
+    @Test
+    @Transactional(propagation=org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
+    void actorOrganizationCanBeReadAfterLookupTransactionEnds() {
+        User actor=intake.actor(user(Role.UNIVERSITY).getId());
+        assertEquals("University 1",actor.getOrganization().getName());
+        assertEquals(OrganizationType.UNIVERSITY,actor.getOrganization().getType());
     }
     @ParameterizedTest @EnumSource(Role.class) void roleMatrix(Role r)throws Exception {
         UUID id=project();String path="/api/projects/"+id;
